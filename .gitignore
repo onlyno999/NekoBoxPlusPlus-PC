@@ -1,0 +1,4 @@
+build/
+data.json
+*.exe
+frontend/wailsjs/

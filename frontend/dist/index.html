@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>NekoBox++</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:"Microsoft YaHei","Segoe UI",sans-serif; }
+  body { background:#fff; color:#2f2f38; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  .titlebar { height:52px; background:linear-gradient(90deg,#ff8fab,#ffa4c0); color:#fff;
+              display:flex; align-items:center; padding:0 16px; gap:14px; --wails-draggable:drag; }
+  .logo { width:30px;height:30px;border-radius:8px;background:#fff;color:#ff6b95;
+          font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center; }
+  .appname { font-size:17px; font-weight:700; }
+  .speed { margin-left:14px; font-size:12.5px; background:rgba(255,255,255,.22); padding:4px 11px; border-radius:20px; }
+  .toolbar { height:56px; display:flex; align-items:center; padding:0 16px; gap:12px;
+             border-bottom:1px solid #f3dbe4; background:#fff8fa; }
+  .status { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; }
+  .dot { width:10px;height:10px;border-radius:50%;background:#c9c9c9; }
+  .dot.on { background:#2fbf71; box-shadow:0 0 0 4px #d9f5e6; }
+  .curnode { color:#666; font-size:13px; }
+  .seg { margin-left:auto; display:flex; background:#f6e3ec; border-radius:9px; padding:3px; }
+  .seg div { padding:5px 14px; font-size:13px; border-radius:7px; color:#a04a68; cursor:pointer; }
+  .seg .on { background:#fff; color:#e7548a; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,.12); }
+  .btn { background:#ff6b95; color:#fff; border:none; font-size:14px; font-weight:700;
+         padding:8px 24px; border-radius:9px; cursor:pointer; }
+  .btn.gray { background:#e8e8ec; color:#555; }
+  .btn.small { padding:5px 14px; font-size:13px; }
+  .body { flex:1; display:flex; min-height:0; }
+  .side { width:200px; background:#fdf3f7; border-right:1px solid #f3dbe4; padding:14px 10px;
+          display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+  .nav { padding:9px 13px; border-radius:9px; font-size:14.5px; color:#5c4450; cursor:pointer; }
+  .nav.on { background:#ffd9e6; color:#d6336c; font-weight:700; }
+  .side h4 { margin:14px 8px 5px; font-size:11.5px; color:#b08a99; letter-spacing:2px; }
+  .grp { padding:7px 13px; border-radius:8px; font-size:13.5px; color:#5c4450; display:flex;
+         justify-content:space-between; cursor:pointer; }
+  .grp.on { background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.08); font-weight:700; color:#2f2f38; }
+  .grp small { color:#b08a99; font-size:11px; }
+  .rulesbox { margin-top:auto; background:#fff; border:1px solid #f3dbe4; border-radius:10px; padding:10px 13px; }
+  .rulesbox div { font-size:12.5px; color:#5c4450; padding:2.5px 0; display:flex; justify-content:space-between; }
+  .ok { color:#2fbf71; font-weight:700; } .off { color:#bbb; }
+  .main { flex:1; padding:14px 18px; overflow-y:auto; min-width:0; }
+  .tabs { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .tab { padding:6px 18px; border-radius:8px; background:#f7e8ee; color:#8a5a6c; font-size:14px; cursor:pointer; }
+  .tab.on { background:#ff6b95; color:#fff; font-weight:700; }
+  .sec { margin-top:14px; background:#faf3f6; border-radius:10px; padding:12px 16px;
+         display:flex; align-items:center; font-size:15.5px; font-weight:600; }
+  .sec .cnt { color:#b08a99; font-weight:400; font-size:13px; margin-left:5px; }
+  .sec .auto { margin-left:auto; font-size:13px; color:#9b8492; cursor:pointer; }
+  .sec .automode { margin-left:auto; font-size:13px; color:#2fbf71; font-weight:700; cursor:pointer; }
+  .nodes { margin-top:9px; display:flex; flex-direction:column; gap:9px; }
+  .node { border:1.5px solid #f0dde5; border-radius:11px; padding:12px 16px; display:flex;
+          align-items:center; gap:12px; cursor:pointer; background:#fff; }
+  .node:hover { border-color:#ffb9cf; }
+  .node.sel { border-color:#ff6b95; background:#fff5f8; }
+  .nname { font-size:15px; font-weight:600; }
+  .nproto { font-size:11.5px; color:#b08a99; background:#f7e8ee; padding:2px 8px; border-radius:6px; }
+  .nlat { font-size:13.5px; font-weight:700; color:#2fbf71; }
+  .nlat.fail { color:#e05252; } .nlat.none { color:#bbb; font-weight:400; }
+  .ntraf { font-size:12px; color:#9b8492; }
+  .badge-inuse { margin-left:auto; background:#2fbf71; color:#fff; font-size:12px; font-weight:700;
+                 padding:3px 11px; border-radius:20px; }
+  .empty { color:#b08a99; font-size:14px; padding:34px 0; text-align:center; }
+  .statusbar { height:34px; background:#fdf3f7; border-top:1px solid #f3dbe4; display:flex;
+               align-items:center; padding:0 16px; gap:20px; font-size:12px; color:#8a6a77; }
+  .statusbar b { color:#5c4450; }
+  .err { color:#e05252; }
+  /* generic panels */
+  .panel { max-width:860px; }
+  .panel h3 { font-size:16px; margin:6px 0 12px; }
+  .row { display:flex; gap:10px; align-items:center; padding:10px 12px; border:1px solid #f0dde5;
+         border-radius:10px; margin-bottom:9px; background:#fff; flex-wrap:wrap; }
+  .row .grow { flex:1; min-width:120px; }
+  input[type=text], input[type=number], select { padding:7px 10px; border:1px solid #eed3de;
+         border-radius:8px; font-size:13.5px; background:#fff; color:#2f2f38; }
+  input.grow { flex:1; }
+  .muted { color:#9b8492; font-size:12.5px; }
+  .logs { font-family:Consolas,monospace; font-size:12.5px; line-height:1.75; white-space:pre-wrap; }
+  .toast { position:fixed; left:50%; bottom:52px; transform:translateX(-50%); background:#2f2f38; color:#fff;
+           padding:9px 20px; border-radius:9px; font-size:13.5px; display:none; z-index:9; }
+  label.chk { display:flex; gap:6px; align-items:center; font-size:13.5px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="titlebar">
+  <div class="logo">N</div><div class="appname">NekoBox++</div>
+  <div class="speed" id="speed">↑ 0 B/s&nbsp;&nbsp;↓ 0 B/s</div>
+</div>
+<div class="toolbar">
+  <div class="status"><span class="dot" id="dot"></span><span id="statusText">未连接</span></div>
+  <div class="curnode" id="curNode"></div>
+  <div class="seg" id="modeSeg">
+    <div data-mode="tun">TUN 模式</div><div data-mode="system">系统代理</div>
+  </div>
+  <button class="btn" id="connBtn">连接</button>
+</div>
+<div class="body">
+  <div class="side" id="side"></div>
+  <div class="main" id="main"></div>
+</div>
+<div class="statusbar" id="statusbar"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import * as App from '/wailsjs/go/main/App.js';
+import { EventsOn } from '/wailsjs/runtime/runtime.js';
+
+const CC = { US:['🇺🇸','美国'], JP:['🇯🇵','日本'], DE:['🇩🇪','德国'], HK:['🇭🇰','香港'],
+  TW:['🇹🇼','台湾'], SG:['🇸🇬','新加坡'], KR:['🇰🇷','韩国'], GB:['🇬🇧','英国'],
+  FR:['🇫🇷','法国'], NL:['🇳🇱','荷兰'], CA:['🇨🇦','加拿大'], AU:['🇦🇺','澳大利亚'],
+  IN:['🇮🇳','印度'], RU:['🇷🇺','俄罗斯'], TR:['🇹🇷','土耳其'], BR:['🇧🇷','巴西'],
+  AR:['🇦🇷','阿根廷'], CH:['🇨🇭','瑞士'], SE:['🇸🇪','瑞典'], IT:['🇮🇹','意大利'],
+  ES:['🇪🇸','西班牙'], PL:['🇵🇱','波兰'], UA:['🇺🇦','乌克兰'], CN:['🇨🇳','中国'] };
+const ccName = cc => CC[cc] ? CC[cc][0] + ' ' + CC[cc][1] : (cc || '未检测');
+const fmtB = n => { if (!n) return '0 B'; const u = ['B','KB','MB','GB','TB']; let i = 0;
+  while (n >= 1024 && i < 4) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + ' ' + u[i]; };
+const fmtTime = t => t ? new Date(t * 1000).toLocaleString('zh-CN', { hour12: false }) : '从未';
+
+let S = null, view = 'nodes', activeGroup = 0;
+const $ = id => document.getElementById(id);
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2600); }
+async function call(fn, ...args) { const r = await fn(...args); if (r) toast(r); await refresh(); }
+
+async function refresh() {
+  S = await App.GetState();
+  if (!S.groups.find(g => g.id === activeGroup)) {
+    activeGroup = S.groups.length ? S.groups[0].id : 0;
+  }
+  render();
+}
+EventsOn('state-changed', refresh);
+setInterval(refresh, 3000);
+
+function render() {
+  $('dot').className = 'dot' + (S.running ? ' on' : '');
+  $('statusText').textContent = S.running ? '已连接' : '未连接';
+  const sel = S.nodes.find(n => n.id === S.selectedId);
+  $('curNode').textContent = sel ? ccName(sel.region) + ' · ' + sel.name : '';
+  $('speed').innerHTML = '↑ ' + fmtB(S.upSpeed) + '/s&nbsp;&nbsp;↓ ' + fmtB(S.downSpeed) + '/s';
+  document.querySelectorAll('#modeSeg div').forEach(d =>
+    d.className = d.dataset.mode === S.mode ? 'on' : '');
+  $('connBtn').textContent = S.running ? '断开' : '连接';
+  $('connBtn').className = 'btn' + (S.running ? ' gray' : '');
+  renderSide();
+  ({ nodes: renderNodes, subs: renderSubs, rules: renderRules,
+     logs: renderLogs, settings: renderSettings })[view]();
+  $('statusbar').innerHTML =
+    '<span>地区扫描：<b>网络变化时全量自动扫</b></span>' +
+    '<span>订阅自动更新：<b>新节点自动测</b></span>' +
+    (S.lastError ? '<span class="err">' + S.lastError + '</span>' : '') +
+    '<span style="margin-left:auto;">本地端口：<b>' + S.mixedPort + '</b></span>';
+}
+
+function renderSide() {
+  const navs = [['nodes','▦ 节点'], ['subs','⇅ 订阅'], ['rules','⑂ 规则'],
+                ['logs','≣ 日志'], ['settings','⚙ 设置']];
+  $('side').innerHTML =
+    navs.map(([v, t]) => '<div class="nav' + (view === v ? ' on' : '') +
+      '" data-view="' + v + '">' + t + '</div>').join('') +
+    '<h4>订阅分组</h4>' +
+    S.groups.map(g => '<div class="grp' + (g.id === activeGroup ? ' on' : '') +
+      '" data-group="' + g.id + '">' + g.name + '<small>' + g.nodeCount + ' 个</small></div>').join('') +
+    '<div class="rulesbox">' +
+      '<div>商店规则 <span class="' + (S.builtinPlay ? 'ok">开' : 'off">关') + '</span></div>' +
+      '<div>中国域名直连 <span class="' + (S.builtinCn ? 'ok">开' : 'off">关') + '</span></div>' +
+      '<div>中国 IP 直连 <span class="' + (S.builtinCn ? 'ok">开' : 'off">关') + '</span></div>' +
+    '</div>';
+  document.querySelectorAll('.nav').forEach(el =>
+    el.onclick = () => { view = el.dataset.view; render(); });
+  document.querySelectorAll('.grp').forEach(el =>
+    el.onclick = () => { activeGroup = +el.dataset.group; view = 'nodes'; render(); });
+}
+
+function renderNodes() {
+  const nodes = S.nodes.filter(n => n.groupId === activeGroup);
+  let h = '<div class="tabs">' + S.groups.map(g =>
+    '<div class="tab' + (g.id === activeGroup ? ' on' : '') + '" data-group="' + g.id + '">' +
+    g.name + '</div>').join('') +
+    '<button class="btn small gray" id="probeBtn" style="margin-left:auto;">一键测速</button></div>';
+  if (!nodes.length) {
+    h += '<div class="empty">这个分组还没有节点，去「订阅」里更新一下</div>';
+  }
+  const sections = {};
+  for (const n of nodes) (sections[n.region || ''] ||= []).push(n);
+  const keys = Object.keys(sections).sort((a, b) => (a === '') - (b === '') || a.localeCompare(b));
+  for (const cc of keys) {
+    const armed = S.autoGroupId === activeGroup && S.autoCc === cc && cc !== '';
+    h += '<div class="sec">' + ccName(cc) + '<span class="cnt">· ' + sections[cc].length + '</span>' +
+      (cc ? (armed
+        ? '<span class="automode" data-disarm="1">自动模式 ✓</span>'
+        : '<span class="auto" data-arm="' + cc + '">自动</span>') : '') + '</div><div class="nodes">';
+    for (const n of sections[cc]) {
+      const lat = !n.hasLatency ? '<span class="nlat none">未测</span>'
+        : n.latency < 0 ? '<span class="nlat fail">超时</span>'
+        : '<span class="nlat">' + n.latency + ' ms</span>';
+      h += '<div class="node' + (n.selected ? ' sel' : '') + '" data-node="' + n.id + '">' +
+        '<span class="nname">' + n.name + '</span>' +
+        '<span class="nproto">' + n.type.toUpperCase() + '</span>' + lat +
+        '<span class="ntraf">↑ ' + fmtB(n.up) + ' · ↓ ' + fmtB(n.down) + '</span>' +
+        (n.selected ? '<span class="badge-inuse">在用</span>' : '') + '</div>';
+    }
+    h += '</div>';
+  }
+  $('main').innerHTML = h;
+  document.querySelectorAll('.tab').forEach(el =>
+    el.onclick = () => { activeGroup = +el.dataset.group; render(); });
+  $('probeBtn').onclick = () => call(App.ProbeGroup, activeGroup);
+  document.querySelectorAll('[data-arm]').forEach(el =>
+    el.onclick = () => call(App.ArmPool, activeGroup, el.dataset.arm));
+  document.querySelectorAll('[data-disarm]').forEach(el =>
+    el.onclick = () => call(App.DisarmPool));
+  document.querySelectorAll('[data-node]').forEach(el =>
+    el.onclick = () => {
+      if (S.autoGroupId) { toast('自动模式：先关掉自动才能手动选择节点'); return; }
+      call(App.SelectNode, el.dataset.node);
+    });
+}
+
+function renderSubs() {
+  let h = '<div class="panel"><h3>订阅</h3>';
+  for (const g of S.groups) {
+    h += '<div class="row"><b>' + g.name + '</b>' +
+      '<span class="grow muted">' + g.url + '</span>' +
+      '<span class="muted">' + g.nodeCount + ' 个节点 · ' + fmtTime(g.updatedAt) + '</span>' +
+      '<label class="chk"><input type="checkbox" data-auto="' + g.id + '"' +
+        (g.autoUpdate ? ' checked' : '') + '>自动更新</label>' +
+      '<button class="btn small" data-upd="' + g.id + '">更新</button>' +
+      '<button class="btn small gray" data-del="' + g.id + '">删除</button></div>';
+  }
+  h += '<div class="row"><input type="text" id="newName" placeholder="分组名" style="width:130px;">' +
+    '<input type="text" id="newUrl" class="grow" placeholder="订阅链接 https://…">' +
+    '<button class="btn small" id="addBtn">添加</button></div></div>';
+  $('main').innerHTML = h;
+  $('addBtn').onclick = () => call(App.AddGroup, $('newName').value, $('newUrl').value);
+  document.querySelectorAll('[data-upd]').forEach(el =>
+    el.onclick = () => call(App.UpdateGroup, +el.dataset.upd));
+  document.querySelectorAll('[data-del]').forEach(el =>
+    el.onclick = () => call(App.DeleteGroup, +el.dataset.del));
+  document.querySelectorAll('[data-auto]').forEach(el =>
+    el.onchange = () => App.SetGroupAuto(+el.dataset.auto, el.checked, 360));
+}
+
+function renderRules() {
+  let h = '<div class="panel"><h3>规则</h3>' +
+    '<div class="row"><b class="grow">内置规则</b>' +
+    '<label class="chk"><input type="checkbox" id="biPlay"' + (S.builtinPlay ? ' checked' : '') + '>商店优先</label>' +
+    '<label class="chk"><input type="checkbox" id="biCn"' + (S.builtinCn ? ' checked' : '') + '>中国域名/IP 直连</label></div>';
+  S.rules.forEach((r, i) => {
+    h += '<div class="row" data-rule="' + i + '">' +
+      '<input type="checkbox" data-f="enabled"' + (r.enabled ? ' checked' : '') + '>' +
+      '<input type="text" data-f="name" value="' + r.name + '" style="width:110px;" placeholder="名称">' +
+      '<input type="text" data-f="content" class="grow" value="' + r.content + '" placeholder="域名，逗号分隔，如 youtube.com,google.com">' +
+      '<select data-f="outbound">' +
+        ['proxy|主线', 'direct|直连', 'block|屏蔽', 'pool|分流池'].map(o => {
+          const [v, t] = o.split('|');
+          return '<option value="' + v + '"' + (r.outbound === v ? ' selected' : '') + '>' + t + '</option>';
+        }).join('') + '</select>' +
+      '<select data-f="poolGroup">' + S.groups.map(g =>
+        '<option value="' + g.id + '"' + (r.poolGroupId === g.id ? ' selected' : '') + '>' + g.name + '</option>').join('') + '</select>' +
+      '<input type="text" data-f="poolCc" value="' + r.poolCc + '" style="width:52px;" placeholder="JP">' +
+      '<button class="btn small gray" data-delrule="' + i + '">删</button></div>';
+  });
+  h += '<button class="btn small gray" id="addRule">＋ 加一条</button> ' +
+    '<button class="btn small" id="saveRules">保存规则</button></div>';
+  $('main').innerHTML = h;
+  $('addRule').onclick = () => {
+    S.rules.push({ name: '', content: '', outbound: 'proxy', poolGroupId: activeGroup, poolCc: '', enabled: true });
+    renderRules();
+  };
+  document.querySelectorAll('[data-delrule]').forEach(el =>
+    el.onclick = () => { S.rules.splice(+el.dataset.delrule, 1); renderRules(); });
+  $('saveRules').onclick = () => {
+    document.querySelectorAll('[data-rule]').forEach(row => {
+      const r = S.rules[+row.dataset.rule], f = k => row.querySelector('[data-f="' + k + '"]');
+      r.enabled = f('enabled').checked; r.name = f('name').value; r.content = f('content').value;
+      r.outbound = f('outbound').value; r.poolGroupId = +f('poolGroup').value; r.poolCc = f('poolCc').value.toUpperCase();
+    });
+    call(App.SaveRules, S.rules, $('biPlay').checked, $('biCn').checked);
+  };
+}
+
+async function renderLogs() {
+  const logs = await App.GetLogs();
+  $('main').innerHTML = '<div class="panel"><h3>日志</h3><div class="logs">' +
+    logs.map(l => l.replace(/</g, '&lt;')).join('\n') + '</div></div>';
+  $('main').scrollTop = $('main').scrollHeight;
+}
+
+function renderSettings() {
+  $('main').innerHTML = '<div class="panel"><h3>设置</h3>' +
+    '<div class="row"><span class="grow">本地混合端口（系统代理模式用）</span>' +
+    '<input type="number" id="port" value="' + S.mixedPort + '" style="width:100px;">' +
+    '<button class="btn small" id="savePort">保存</button></div>' +
+    '<div class="row"><span class="muted">绿色版：所有数据都存在程序旁边的 data.json 里，整个文件夹拷走就能用。' +
+    'TUN 模式需要管理员权限运行，起不来时改用系统代理模式。</span></div></div>';
+  $('savePort').onclick = () => call(App.SetPort, +$('port').value);
+}
+
+$('connBtn').onclick = () => S.running ? call(App.Disconnect) : call(App.Connect);
+document.querySelectorAll('#modeSeg div').forEach(d =>
+  d.onclick = () => call(App.SetMode, d.dataset.mode));
+
+refresh();
+</script>
+</body>
+</html>
