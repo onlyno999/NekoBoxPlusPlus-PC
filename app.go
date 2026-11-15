@@ -106,10 +106,12 @@ func NewApp() *App {
 }
 
 func (a *App) startup(ctx context.Context) {
+	bootlog("startup begin")
 	a.ctx = ctx
 	bg, cancel := context.WithCancel(context.Background())
 	_ = cancel
 	a.bal.Run(bg)
+	bootlog("balancer running")
 	a.logf("程序启动")
 }
 
