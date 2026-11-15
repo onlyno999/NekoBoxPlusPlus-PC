@@ -168,6 +168,9 @@ func (a *App) GetState() StateDTO {
 	a.trafMu.Unlock()
 
 	st := StateDTO{
+		Groups:      []GroupDTO{},
+		Nodes:       []NodeDTO{},
+		Rules:       []RuleDTO{},
 		Running:     a.runner.Running(),
 		Mode:        d.Settings.Mode,
 		MixedPort:   d.Settings.MixedPort,

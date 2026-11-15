@@ -12,6 +12,11 @@
           font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center; }
   .appname { font-size:17px; font-weight:700; }
   .speed { margin-left:14px; font-size:12.5px; background:rgba(255,255,255,.22); padding:4px 11px; border-radius:20px; }
+  .winbtns { margin-left:auto; display:flex; gap:6px; --wails-draggable:no-drag; }
+  .winbtns span { width:34px; height:26px; display:flex; align-items:center; justify-content:center;
+                  border-radius:6px; cursor:pointer; font-size:13px; }
+  .winbtns span:hover { background:rgba(255,255,255,.3); }
+  #winClose:hover { background:#e81123; }
   .toolbar { height:56px; display:flex; align-items:center; padding:0 16px; gap:12px;
              border-bottom:1px solid #f3dbe4; background:#fff8fa; }
   .status { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; }
@@ -84,6 +89,11 @@
 <div class="titlebar">
   <div class="logo">N</div><div class="appname">NekoBox++</div>
   <div class="speed" id="speed">↑ 0 B/s&nbsp;&nbsp;↓ 0 B/s</div>
+  <div class="winbtns">
+    <span id="winMin" title="最小化">—</span>
+    <span id="winMax" title="最大化">▢</span>
+    <span id="winClose" title="关闭">✕</span>
+  </div>
 </div>
 <div class="toolbar">
   <div class="status"><span class="dot" id="dot"></span><span id="statusText">未连接</span></div>
@@ -130,6 +140,7 @@ async function call(fn, ...args) { const r = await fn(...args); if (r) toast(r);
 
 async function refresh() {
   S = await App.GetState();
+  S.groups ||= []; S.nodes ||= []; S.rules ||= [];
   if (!S.groups.find(g => g.id === activeGroup)) {
     activeGroup = S.groups.length ? S.groups[0].id : 0;
   }
@@ -301,6 +312,9 @@ function renderSettings() {
   $('savePort').onclick = () => call(App.SetPort, +$('port').value);
 }
 
+$('winMin').onclick = () => window.runtime && window.runtime.WindowMinimise();
+$('winMax').onclick = () => window.runtime && window.runtime.WindowToggleMaximise();
+$('winClose').onclick = () => window.runtime && window.runtime.Quit();
 $('connBtn').onclick = () => S.running ? call(App.Disconnect) : call(App.Connect);
 document.querySelectorAll('#modeSeg div').forEach(d =>
   d.onclick = () => call(App.SetMode, d.dataset.mode));
