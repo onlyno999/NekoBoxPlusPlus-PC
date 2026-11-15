@@ -6,6 +6,7 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 
 	"nekoboxpp-pc/internal/store"
@@ -258,8 +259,34 @@ func BuildProbe(n *store.Node, port int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Target names must resolve THROUGH the node (remote DoH
+	// detoured via the node itself): resolving them with the
+	// system resolver hands the server polluted or fake IPs
+	// and every probe times out. The node's own server name,
+	// when it is a domain, resolves locally to avoid a loop.
+	dns := map[string]any{
+		"servers": []any{
+			map[string]any{
+				"tag":     "remote",
+				"address": "https://223.5.5.5/dns-query",
+				"detour":  TagProxy,
+			},
+			map[string]any{
+				"tag":     "local",
+				"address": "local",
+			},
+		},
+		"final":    "remote",
+		"strategy": "ipv4_only",
+	}
+	if srv, _ := ob["server"].(string); srv != "" && net.ParseIP(srv) == nil {
+		dns["rules"] = []any{
+			map[string]any{"domain": []string{srv}, "server": "local"},
+		}
+	}
 	cfg := map[string]any{
 		"log": map[string]any{"level": "warn", "timestamp": true},
+		"dns": dns,
 		"inbounds": []any{
 			map[string]any{
 				"type":        "mixed",

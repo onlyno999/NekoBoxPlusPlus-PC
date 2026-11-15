@@ -13,6 +13,11 @@
   .appname { font-size:17px; font-weight:700; }
   .speed { margin-left:14px; font-size:12.5px; background:rgba(255,255,255,.22); padding:4px 11px; border-radius:20px; }
   .winbtns { margin-left:auto; display:flex; gap:6px; --wails-draggable:no-drag; }
+  #ctxmenu { position:fixed; z-index:99; display:none; min-width:150px; background:#fff;
+             border:1px solid #f3c3d4; border-radius:10px; box-shadow:0 8px 28px rgba(190,60,110,.22);
+             padding:5px; }
+  #ctxmenu div { padding:8px 12px; border-radius:6px; cursor:pointer; font-size:13.5px; }
+  #ctxmenu div:hover { background:#fdeef4; }
   .winbtns span { width:34px; height:26px; display:flex; align-items:center; justify-content:center;
                   border-radius:6px; cursor:pointer; font-size:13px; }
   .winbtns span:hover { background:rgba(255,255,255,.3); }
@@ -109,6 +114,10 @@
 </div>
 <div class="statusbar" id="statusbar"></div>
 <div class="toast" id="toast"></div>
+<div id="ctxmenu">
+  <div data-act="use">设为活动服务器</div>
+  <div data-act="probe">测速此节点</div>
+</div>
 
 <script>
 // Direct bridge to the Wails-injected objects; no module
@@ -147,7 +156,35 @@ async function refresh() {
   render();
 }
 
+// Preserve in-progress typing across re-renders: the 3 s poll
+// and state events rebuild #main, which would otherwise wipe
+// half-typed form fields.
+function captureForm() {
+  const vals = {};
+  document.querySelectorAll('#main input, #main textarea, #main select')
+    .forEach(el => { if (el.id) vals[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+  const ae = document.activeElement;
+  const inMain = ae && $('main').contains(ae) && ae.id;
+  return { vals, focus: inMain ? ae.id : null,
+           sel: inMain && ae.selectionStart != null ? ae.selectionStart : null };
+}
+function restoreForm(cap) {
+  Object.entries(cap.vals).forEach(([id, v]) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = v; else el.value = v;
+  });
+  if (cap.focus && $(cap.focus)) {
+    const el = $(cap.focus);
+    el.focus();
+    if (cap.sel != null && el.setSelectionRange) {
+      try { el.setSelectionRange(cap.sel, cap.sel); } catch (e) {}
+    }
+  }
+}
+
 function render() {
+  const cap = captureForm();
   $('dot').className = 'dot' + (S.running ? ' on' : '');
   $('statusText').textContent = S.running ? '已连接' : '未连接';
   const sel = S.nodes.find(n => n.id === S.selectedId);
@@ -160,6 +197,7 @@ function render() {
   renderSide();
   ({ nodes: renderNodes, subs: renderSubs, rules: renderRules,
      logs: renderLogs, settings: renderSettings })[view]();
+  restoreForm(cap);
   $('statusbar').innerHTML =
     '<span>地区扫描：<b>网络变化时全量自动扫</b></span>' +
     '<span>订阅自动更新：<b>新节点自动测</b></span>' +
@@ -225,11 +263,16 @@ function renderNodes() {
     el.onclick = () => call(App.ArmPool, activeGroup, el.dataset.arm));
   document.querySelectorAll('[data-disarm]').forEach(el =>
     el.onclick = () => call(App.DisarmPool));
-  document.querySelectorAll('[data-node]').forEach(el =>
+  document.querySelectorAll('[data-node]').forEach(el => {
     el.onclick = () => {
       if (S.autoGroupId) { toast('自动模式：先关掉自动才能手动选择节点'); return; }
       call(App.SelectNode, el.dataset.node);
-    });
+    };
+    el.oncontextmenu = e => {
+      e.preventDefault();
+      showCtx(e.clientX, e.clientY, el.dataset.node);
+    };
+  });
 }
 
 function renderSubs() {
@@ -315,6 +358,31 @@ function renderSettings() {
 $('winMin').onclick = () => window.runtime && window.runtime.WindowMinimise();
 $('winMax').onclick = () => window.runtime && window.runtime.WindowToggleMaximise();
 $('winClose').onclick = () => window.runtime && window.runtime.Quit();
+let ctxNodeId = '';
+function showCtx(x, y, id) {
+  ctxNodeId = id;
+  const m = $('ctxmenu');
+  m.style.display = 'block';
+  m.style.left = Math.min(x, innerWidth - 170) + 'px';
+  m.style.top = Math.min(y, innerHeight - 110) + 'px';
+}
+function hideCtx() { $('ctxmenu').style.display = 'none'; }
+document.addEventListener('click', hideCtx);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtx(); });
+document.querySelectorAll('#ctxmenu div').forEach(el =>
+  el.onclick = e => {
+    e.stopPropagation();
+    const id = ctxNodeId;
+    hideCtx();
+    if (!id) return;
+    if (el.dataset.act === 'use') {
+      if (S.autoGroupId) { toast('自动模式：先关掉自动才能手动选择节点'); return; }
+      call(App.SelectNode, id);
+    } else {
+      toast('开始测速…');
+      call(App.ProbeNode, id);
+    }
+  });
 $('connBtn').onclick = () => S.running ? call(App.Disconnect) : call(App.Connect);
 document.querySelectorAll('#modeSeg div').forEach(d =>
   d.onclick = () => call(App.SetMode, d.dataset.mode));

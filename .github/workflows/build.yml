@@ -35,37 +35,23 @@ jobs:
         shell: pwsh
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.10.2
 
+      # The tag set matters: without with_utls every node
+      # whose link carries fp= fails to start, and TUN's
+      # mixed stack needs with_gvisor. with_ech must NOT be
+      # added (deprecated in this core, breaks the build).
       - name: Build app
         shell: pwsh
         working-directory: pc
-        run: wails build -platform windows/amd64 -clean
+        run: wails build -platform windows/amd64 -clean -tags "with_gvisor,with_quic,with_wireguard,with_utls"
 
-      - name: Fetch wintun.dll
-        shell: pwsh
-        working-directory: pc/build/bin
-        run: |
-          Invoke-WebRequest -Uri "https://www.wintun.net/builds/wintun-0.14.1.zip" -OutFile wintun.zip
-          Expand-Archive wintun.zip -DestinationPath wintun_x
-          Copy-Item wintun_x/wintun/bin/amd64/wintun.dll .
-          Remove-Item -Recurse -Force wintun.zip, wintun_x
-
-      - name: Pack portable zip
-        shell: pwsh
-        working-directory: pc/build/bin
-        run: |
-          Set-Content -Path README.txt -Encoding UTF8 -Value @(
-            "NekoBox++ PC 绿色版",
-            "解压后双击 NekoBoxPlusPlus.exe 运行，不用安装。",
-            "所有数据保存在同目录的 data.json，整个文件夹拷走即可迁移。",
-            "TUN 模式需要右键以管理员身份运行；普通使用可选系统代理模式。"
-          )
-          Compress-Archive -Path NekoBoxPlusPlus.exe, wintun.dll, README.txt -DestinationPath NekoBoxPlusPlus-PC-portable.zip
-
+      # Single-file portable: wintun.dll is embedded in the
+      # exe and written next to it on first run, so the exe
+      # alone is the whole distribution.
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NekoBoxPlusPlus-PC-portable
-          path: pc/build/bin/NekoBoxPlusPlus-PC-portable.zip
+          name: NekoBoxPlusPlus-PC
+          path: pc/build/bin/NekoBoxPlusPlus.exe
 
       - name: Publish release
         if: inputs.release_tag != ''
@@ -74,4 +60,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ inputs.release_tag }}" build/bin/NekoBoxPlusPlus-PC-portable.zip --title "NekoBox++ PC ${{ inputs.release_tag }}" --notes "绿色免安装版：解压双击即用。" --repo $env:GITHUB_REPOSITORY
+          gh release create "${{ inputs.release_tag }}" build/bin/NekoBoxPlusPlus.exe --title "NekoBox++ PC ${{ inputs.release_tag }}" --notes "绿色版：单个 exe 文件，下载双击即用，不用安装。" --repo $env:GITHUB_REPOSITORY

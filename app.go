@@ -350,6 +350,9 @@ func (a *App) DisarmPool() string {
 
 func (a *App) AddGroup(name, rawURL string) string {
 	d := a.store.Data
+	if strings.TrimSpace(name) == "" {
+		name = "订阅"
+	}
 	g := store.Group{
 		ID:           d.NextGroupID,
 		Name:         strings.TrimSpace(name),
@@ -460,6 +463,22 @@ func (a *App) ProbeGroup(gid int64) string {
 		}
 		a.bal.TestLatency(context.Background(), a.store.NodesOfGroup(gid))
 		a.logf("测速完成")
+	}()
+	return ""
+}
+
+// ProbeNode measures one node's region and latency
+// (right-click menu on a node row).
+func (a *App) ProbeNode(id string) string {
+	go func() {
+		n := a.store.NodeByID(id)
+		if n == nil {
+			return
+		}
+		one := []store.Node{*n}
+		a.bal.SweepRegions(context.Background(), one)
+		a.bal.TestLatency(context.Background(), one)
+		a.logf("节点测速完成：%s", n.Name)
 	}()
 	return ""
 }

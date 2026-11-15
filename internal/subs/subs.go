@@ -204,8 +204,8 @@ func tlsBlock(q url.Values, serverName string) map[string]any {
 func transportBlock(q url.Values) map[string]any {
 	typ := q.Get("type")
 	switch typ {
-	case "ws":
-		t := map[string]any{"type": "websocket"}
+	case "ws", "websocket":
+		t := map[string]any{"type": "ws"}
 		if p := q.Get("path"); p != "" {
 			t["path"] = p
 		}
