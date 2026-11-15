@@ -100,9 +100,16 @@
 <div class="statusbar" id="statusbar"></div>
 <div class="toast" id="toast"></div>
 
-<script type="module">
-import * as App from '/wailsjs/go/main/App.js';
-import { EventsOn } from '/wailsjs/runtime/runtime.js';
+<script>
+// Direct bridge to the Wails-injected objects; no module
+// files to load, so nothing can 404.
+const App = new Proxy({}, { get: (_, m) => (...args) => window.go.main.App[m](...args) });
+const EventsOn = (ev, cb) => { if (window.runtime) window.runtime.EventsOn(ev, cb); };
+window.addEventListener('error', e => {
+  const sb = document.getElementById('statusbar');
+  if (sb) sb.innerHTML = '<span class="err">界面错误：' + e.message + '</span>';
+});
+
 
 const CC = { US:['🇺🇸','美国'], JP:['🇯🇵','日本'], DE:['🇩🇪','德国'], HK:['🇭🇰','香港'],
   TW:['🇹🇼','台湾'], SG:['🇸🇬','新加坡'], KR:['🇰🇷','韩国'], GB:['🇬🇧','英国'],
@@ -128,8 +135,6 @@ async function refresh() {
   }
   render();
 }
-EventsOn('state-changed', refresh);
-setInterval(refresh, 3000);
 
 function render() {
   $('dot').className = 'dot' + (S.running ? ' on' : '');
@@ -300,7 +305,16 @@ $('connBtn').onclick = () => S.running ? call(App.Disconnect) : call(App.Connect
 document.querySelectorAll('#modeSeg div').forEach(d =>
   d.onclick = () => call(App.SetMode, d.dataset.mode));
 
-refresh();
+function boot() {
+  if (window.go && window.go.main && window.go.main.App) {
+    EventsOn('state-changed', refresh);
+    setInterval(refresh, 3000);
+    refresh();
+  } else {
+    setTimeout(boot, 200);
+  }
+}
+boot();
 </script>
 </body>
 </html>
